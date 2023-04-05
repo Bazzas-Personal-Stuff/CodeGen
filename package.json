@@ -1,0 +1,7 @@
+{
+  "name": "com.bazzagibbs.codegen",
+  "version": "1.0.0",
+  "displayName": "CodeGen",
+  "description": "A simple code generator that can be embedded in Unity packages.",
+  "type": "tool"
+}
