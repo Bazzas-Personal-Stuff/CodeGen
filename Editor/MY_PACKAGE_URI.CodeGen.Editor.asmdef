@@ -1,6 +1,6 @@
 {
-    "name": "MY_PACKAGE_URI.Editor",
-    "rootNamespace": "",
+    "name": "MY_PACKAGE_URI.CodeGen.Editor",
+    "rootNamespace": "MY_PACKAGE_NAMESPACE",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

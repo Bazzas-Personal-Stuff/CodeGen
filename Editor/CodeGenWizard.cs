@@ -7,14 +7,21 @@ using UnityEngine;
 
 namespace MY_PACKAGE_NAMESPACE {
     public class CodeGenWizard : ScriptableWizard {
+        public const string WizardHelp = "This is example help dialogue. Replace me in CodeGenWizard.cs";
+        
         public const string PackageName = "MY_PACKAGE_URI";
+        public const string WizardTitle = "MY_WIZARD_WINDOW_TITLE";
+        public const string WizardMenuItemPath = "Tools/MY_WIZARD_MENU_ITEM";
 
 // =====================================================================================================================
 #region Variables
+        public CodeGenHelpPanel helpPanel = new(WizardHelp);
+        
         // Defaults
         private string templatesDirectory = $"Packages/{PackageName}/CodeGen/Editor/Code Templates";
         public string outputDirectory = $"Assets/Generated/{PackageName}";
         public List<CodeGenMacroDefinition> macros;
+        
 #endregion      
 // =====================================================================================================================
 #region Regex
@@ -27,13 +34,14 @@ namespace MY_PACKAGE_NAMESPACE {
 #endregion
 // =====================================================================================================================
 #region Ctors
-        [MenuItem("Tools/MY_WIZARD_MENU_ITEM")]
+        [MenuItem(WizardMenuItemPath)]
         static void CreateWizard() {
-            DisplayWizard<CodeGenWizard>("Create New GameVariable Type", "Generate", "Get Macros");
+            DisplayWizard<CodeGenWizard>(WizardTitle, "Generate", "Get Macros");
         }
         
         private void OnEnable() {
             LoadConfig();
+            
         }
 
         private void OnDisable() {
@@ -58,6 +66,7 @@ namespace MY_PACKAGE_NAMESPACE {
             }
             
             macros = cfg.macros;
+            UpdateSerializedMacros(GetRequestedMacrosFromTemplates(templatesDirectory));
         }
         
         private void SaveConfig() {
@@ -76,6 +85,46 @@ namespace MY_PACKAGE_NAMESPACE {
             
             cfg.macros = macros;
             cfg.SaveConfig();
+        }
+
+        // Return -1 if batch requested but is invalid,
+        // 0 if no batch requested
+        int GetBatchCount() {
+            
+            int batchCount = 0;
+            foreach (CodeGenMacroDefinition macroDef in macros) {
+                if (macroDef.useSingleReplacement) {
+                    continue;
+                }
+
+                if (batchCount == 0) {
+                    if(macroDef.replaceWithBatch.Count != 0){
+                        batchCount = macroDef.replaceWithBatch.Count;
+                        continue;
+                    }
+                }
+
+                if (batchCount == macroDef.replaceWithBatch.Count) continue;
+                
+                Debug.LogError($"CodeGen: Batch generation invalid. Please make sure all batch macros have the same number of entries. Problem macro: {macroDef.macroName}"); 
+                return 0;
+            }
+
+            return batchCount;
+        }
+
+        Dictionary<string, string> GetBatchReplacements(int index) {
+            Dictionary<string, string> replacements = new();
+            foreach (CodeGenMacroDefinition macroDef in macros) {
+                if (macroDef.useSingleReplacement) {
+                    replacements.Add(macroDef.macroName, macroDef.replaceWith);
+                }
+                else {
+                    replacements.Add(macroDef.macroName, macroDef.replaceWithBatch[index]);
+                }
+            }
+
+            return replacements;
         }
 #endregion
 // =====================================================================================================================
@@ -104,97 +153,110 @@ namespace MY_PACKAGE_NAMESPACE {
                 return;
             }
 
-            Dictionary<string, HashSet<string>> requestedMacros = GetRequestedMacros(templatesDirectory);
-            UpdateMacros(requestedMacros);
+            Dictionary<string, HashSet<string>> requestedMacros = GetRequestedMacrosFromTemplates(templatesDirectory);
+            UpdateSerializedMacros(requestedMacros);
 
-            Dictionary<string, string> macroReplacements = GetMacroReplacements(requestedMacros, macros);
+            // get max number of macro definitions
+            int batchCount = GetBatchCount();
+            if (batchCount == -1) return;
 
-            List<string> successfulWrites = new(); // Keep track of written files in case one fails
-            bool result = true;
-            try {
-                foreach (string templatePath in GetTemplatePaths(templatesDirectory)) {
-                    FileStream fs = File.OpenRead(templatePath);
-                    StreamReader fsReader = new(fs);
-                    string firstLine = fsReader.ReadLine();
-                    string templateBody = fsReader.ReadToEnd();
-                    fsReader.Close();
+            for (int batchIndex = -1; batchIndex < batchCount - 1; ) {
+                batchIndex++;
+                Dictionary<string, string> batchDefs = GetBatchReplacements(batchIndex);
+                Dictionary<string, string> macroReplacements = GetMacroReplacements(requestedMacros, batchDefs);
 
-                    if (firstLine == null || firstLine.StartsWith("###") == false) {
-                        Debug.LogError(
-                            $"CodeGenWizard error parsing template {templatePath}: Incorrect syntax or empty file");
-                        result = false;
-                        break;
+                List<string> successfulWrites = new(); // Keep track of written files in case one fails
+                bool result = true;
+                try {
+                    foreach (string templatePath in GetTemplatePaths(templatesDirectory)) {
+                        FileStream fs = File.OpenRead(templatePath);
+                        StreamReader fsReader = new(fs);
+                        string firstLine = fsReader.ReadLine();
+                        string templateBody = fsReader.ReadToEnd();
+                        fsReader.Close();
+
+                        if (firstLine == null || firstLine.StartsWith("###") == false) {
+                            Debug.LogError(
+                                $"CodeGenWizard error parsing template {templatePath}: Incorrect syntax or empty file");
+                            result = false;
+                            break;
+                        }
+
+
+                        // Parse output file path
+                        string outRelPathReplaced = ReplaceMacros(firstLine.Substring(3), macroReplacements);
+                        string outputPath = Path.Combine(Path.GetRelativePath(".", outputDirectory),
+                            Path.GetRelativePath(".", outRelPathReplaced));
+
+                        if (SanitizePath(outputPath, "Assets") == false) {
+                            Debug.LogError($"Output path for template {templatePath} is invalid: {outputPath}");
+                            result = false;
+                            break;
+                        }
+                        
+                        // Parse template body
+                        if (templateBody.Length <= 0) {
+                            Debug.LogError($"CodeGenWizard error parsing template {templatePath}: Empty template body");
+                            result = false;
+                            break;
+                        }
+                        string templateBodyReplaced = ReplaceMacros(templateBody, macroReplacements);
+                        string outputDestDir = Path.GetDirectoryName(outputPath);
+                        if (outputDestDir == null) {
+                            Debug.LogError($"Failure writing to file {outputPath}");
+                            result = false;
+                            break;
+                        }
+                        
+                        // TODO: Record Undo 
+                        Directory.CreateDirectory(outputDestDir);
+                        File.WriteAllText(outputPath, templateBodyReplaced);
+                        successfulWrites.Add(outputPath);
                     }
 
-
-                    // Parse output file path
-                    string outRelPathReplaced = ReplaceMacros(firstLine.Substring(3), macroReplacements);
-                    string outputPath = Path.Combine(Path.GetRelativePath(".", outputDirectory),
-                        Path.GetRelativePath(".", outRelPathReplaced));
-
-                    if (SanitizePath(outputPath, "Assets") == false) {
-                        Debug.LogError($"Output path for template {templatePath} is invalid: {outputPath}");
-                        result = false;
-                        break;
-                    }
-                    
-                    // Parse template body
-                    if (templateBody.Length <= 0) {
-                        Debug.LogError($"CodeGenWizard error parsing template {templatePath}: Empty template body");
-                        result = false;
-                        break;
-                    }
-                    string templateBodyReplaced = ReplaceMacros(templateBody, macroReplacements);
-                    string outputDestDir = Path.GetDirectoryName(outputPath);
-                    if (outputDestDir == null) {
-                        Debug.LogError($"Failure writing to file {outputPath}");
-                        result = false;
-                        break;
-                    }
-                    
-                    // TODO: Record Undo 
-                    Directory.CreateDirectory(outputDestDir);
-                    File.WriteAllText(outputPath, templateBodyReplaced);
-                    successfulWrites.Add(outputPath);
+                }
+                catch (Exception e) {
+                    result = false;
+                    Debug.LogError(e);
                 }
 
-            }
-            catch (Exception e) {
-                result = false;
-                Debug.LogError(e);
-            }
-
-            if (result == false) {
-                // delete files that were successfully written
+                if (result == false) {
+                    // delete files that were successfully written
+                    if (successfulWrites.Count > 0) {
+                        // TODO: Perform Undo
+                        string filesList = string.Join('\n', successfulWrites);
+                        Debug.LogWarning($"CodeGen failed, but some files were successfully written. You may want to remove these manually, or overwrite them.\n{filesList}" );
+                    }
+                    else {
+                        Debug.LogWarning($"CodeGen failed, no files were written.");
+                    }
+                    return;
+                }
+                
+                // Select the new files in the Project panel
                 if (successfulWrites.Count > 0) {
-                    // TODO: Perform Undo
+                    UnityEngine.Object[] writtenObjs = new UnityEngine.Object[successfulWrites.Count];
+                    for (int i = 0; i < writtenObjs.Length; i++) {
+                        UnityEngine.Object writtenObj = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(successfulWrites[i]);
+                        writtenObjs[i] = writtenObj;
+                        EditorGUIUtility.PingObject(writtenObj);
+                    }
+                    
                     string filesList = string.Join('\n', successfulWrites);
-                    Debug.LogWarning($"CodeGen failed, but some files were successfully written. You may want to remove these manually, or overwrite them.\n{filesList}" );
+                    Debug.Log($"CodeGen: Files were successfully generated. If any errors follow this message, please check that the generated code is valid:\n{filesList}", writtenObjs[^1]);
+
+                    Selection.objects = writtenObjs;
+                    
                 }
                 else {
-                    Debug.LogWarning($"CodeGen failed, no files were written.");
+                    Debug.Log("CodeGen: No files were created");
                 }
-                return;
             }
             
-            // Select the new files in the Project panel
-            if (successfulWrites.Count > 0) {
-                UnityEngine.Object[] writtenObjs = new UnityEngine.Object[successfulWrites.Count];
-                for (int i = 0; i < writtenObjs.Length; i++) {
-                    UnityEngine.Object writtenObj = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(successfulWrites[i]);
-                    writtenObjs[i] = writtenObj;
-                    EditorGUIUtility.PingObject(writtenObj);
-                }
-                
-                string filesList = string.Join('\n', successfulWrites);
-                Debug.Log($"CodeGen: Files were successfully generated. If any errors follow this message, please check that the generated code is valid:\n{filesList}", writtenObjs[^1]);
-
-                Selection.objects = writtenObjs;
-                
-            }
-            else {
-                Debug.Log("CodeGen: No files were created");
-            }
+            // make sure all batch definitions have the same number of entries
+            // loop that many times
+            // populate replacement dict every time
+            
         }
 
         
@@ -204,16 +266,21 @@ namespace MY_PACKAGE_NAMESPACE {
                 return;
             }
             
-            UpdateMacros(GetRequestedMacros(templatesDirectory));
+            UpdateSerializedMacros(GetRequestedMacrosFromTemplates(templatesDirectory));
         }
 #endregion
 // =====================================================================================================================
 #region File Parsing
 
-        private void UpdateMacros(Dictionary<string, HashSet<string>> requestedMacros) {
+        /// <summary>
+        /// Ensure all requested macros are displayed in the UI, and remove any macros that aren't requested.
+        /// </summary>
+        /// <param name="requestedMacros">Dictionary of all macros and modifiers present in the template files.</param>
+        private void UpdateSerializedMacros(Dictionary<string, HashSet<string>> requestedMacros) {
             // Remove macros that aren't requested
             macros.RemoveAll(macro => requestedMacros.ContainsKey(macro.macroName) == false);
 
+            // Add macros that are requested but don't exist
             foreach (string macroIdentifier in requestedMacros.Keys) {
                 if (macros.Exists(macro => macroIdentifier == macro.macroName)) {
                     continue;
@@ -227,7 +294,12 @@ namespace MY_PACKAGE_NAMESPACE {
             
         }
 
-        private static Dictionary<string, HashSet<string>> GetRequestedMacros(string directory) {
+        /// <summary>
+        /// Parse template files to find macro identifiers that need to be defined.
+        /// </summary>
+        /// <param name="directory">Directory containing the template files to parse.</param>
+        /// <returns>Dictionary of Macro identifiers, and any modifiers that need to be calculated.</returns>
+        private static Dictionary<string, HashSet<string>> GetRequestedMacrosFromTemplates(string directory) {
             Dictionary<string, HashSet<string>> requestedMacros = new();
             
             string[] templatePaths = GetTemplatePaths(directory);
@@ -261,10 +333,16 @@ namespace MY_PACKAGE_NAMESPACE {
             return requestedMacros;
         }
         
-        private static Dictionary<string, string> GetMacroReplacements(Dictionary<string, HashSet<string>> requestedMacros, List<CodeGenMacroDefinition> macroDefinitions) {
+        /// <summary>
+        /// Get the macro definitions for all macros, including modified variants.
+        /// </summary>
+        /// <param name="requestedMacros">Dictionary of all macro identifiers, and each requested modifier that needs to be calculated.</param>
+        /// <param name="macroDefinitions">Dictionary of all macro identifiers, and the user-provided definitions.</param>
+        /// <returns>Dictionary with definitions for every requested $MACRO.FORMAT$ combination.</returns>
+        private static Dictionary<string, string> GetMacroReplacements(Dictionary<string, HashSet<string>> requestedMacros, Dictionary<string, string> macroDefinitions) {
             Dictionary<string, string> macroReplacements = new();
             foreach (KeyValuePair<string, HashSet<string>> kvp in requestedMacros) {
-                string baseReplacement = macroDefinitions.Find(macroDef => kvp.Key == macroDef.macroName).replaceWith;
+                string baseReplacement = macroDefinitions[kvp.Key];
                 if (baseReplacement.Length <= 0) {
                     continue;
                 }
@@ -281,6 +359,13 @@ namespace MY_PACKAGE_NAMESPACE {
             return macroReplacements;
         }
         
+        /// <summary>
+        /// Transform a user-defined macro replacement into the format of the requested modifier.
+        /// </summary>
+        /// <param name="macroReplacement"></param>
+        /// <param name="macroModifier"></param>
+        /// <param name="transformedReplacement">Macro replacement in the specified format.</param>
+        /// <returns><see langword="true"/> if transformation was successful, <see langword="false"/> otherwise.</returns>
         private static bool ProcessMacroModifier(string macroReplacement, string macroModifier, out string transformedReplacement) {
             bool result = true;
             
@@ -298,6 +383,12 @@ namespace MY_PACKAGE_NAMESPACE {
                 case "CAMEL":
                     transformedReplacement = char.ToLower(macroReplacement[0]) + macroReplacement.Substring(1);
                     break;
+                case "NAME":
+                    // same as pascal, but strip all non-alphanumeric characters
+                    transformedReplacement = char.ToUpper(macroReplacement[0]) + macroReplacement.Substring(1);
+                    char[] replacementCharArr = transformedReplacement.ToCharArray();
+                    transformedReplacement = new string(Array.FindAll(replacementCharArr, char.IsLetterOrDigit));
+                    break;
                 default:
                     transformedReplacement = string.Empty;
                     result = false;
@@ -307,6 +398,12 @@ namespace MY_PACKAGE_NAMESPACE {
             return result;
         }
 
+        /// <summary>
+        /// Parse a template file, replacing all $MACROS$ with their definitions.
+        /// </summary>
+        /// <param name="template">string from template file.</param>
+        /// <param name="macroReplacements">Dictionary with definitions for every requested $MACRO.FORMAT$ combination.</param>
+        /// <returns>The template string with all macros substituted.</returns>
         private string ReplaceMacros(string template, Dictionary<string, string> macroReplacements) {
             string outputText = template;
             foreach (KeyValuePair<string, string> kvp in macroReplacements) {
