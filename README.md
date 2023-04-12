@@ -57,4 +57,4 @@ already exists in the target directory it will be overwritten.
 
 - **Template directory** (private) - Where the code generator will search for template files.
 - **Output directory** - The root destination folder for any generated code files. Templates may create directories inside this folder.
-- **Macro definitions** - What each \$MACRO\$ in the template files should be replaced with. The $ signs should be omitted here.
+- **Macro definitions** - What each `$MACRO$` in the template files should be replaced with. The $ signs should be omitted here.
