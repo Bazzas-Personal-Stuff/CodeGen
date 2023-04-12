@@ -12,6 +12,7 @@ A very simple code generator with a similar syntax to JetBrains products' code t
    e.g. `Example Package/Create Custom Example`
        - Note: if you want your wizard to be launched from somewhere other than the "Tools" tab, instead replace "Tools/MY_WIZARD_MENU_ITEM" with the full menu path.
    - "MY_WIZARD_WINDOW_TITLE", the name displayed when the wizard is opened
+   - "MY_WIZARD_HELP_DIALOGUE", the text displayed as an information box at the top of the wizard. Include descriptions of what each macro should be replaced with, and any other instructions for the user.
 3. In `CodeGenWizard.cs`, edit the "WizardHelp" string at the top to add a description of the macros in your templates.
 
 ## Writing Templates

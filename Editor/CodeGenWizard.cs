@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace MY_PACKAGE_NAMESPACE {
     public class CodeGenWizard : ScriptableWizard {
-        public const string WizardHelp = "This is example help dialogue. Replace me in CodeGenWizard.cs";
+        public const string WizardHelp = "MY_WIZARD_HELP_DIALOGUE";
         
         public const string PackageName = "MY_PACKAGE_URI";
         public const string WizardTitle = "MY_WIZARD_WINDOW_TITLE";
