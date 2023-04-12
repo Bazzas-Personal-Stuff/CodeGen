@@ -1,4 +1,5 @@
-﻿# CodeGen
+
+# CodeGen
 
 A very simple code generator with a similar syntax to JetBrains products' code templates.
 
@@ -6,14 +7,17 @@ A very simple code generator with a similar syntax to JetBrains products' code t
 
 1. Copy this repo to a folder called "CodeGen" inside your package folder: `Packages/com.bazzagibbs.examplepackage/CodeGen`
 2. Find and replace the following within the CodeGen folder:
-   - "MY_PACKAGE_NAMESPACE", e.g. `BazzaGibbs.ExamplePackage`
-   - "MY_PACKAGE_URI", e.g. `com.bazzagibbs.examplepackage`
-   - "MY_WIZARD_MENU_ITEM", the submenu under "Tools" where the wizard will be launched from. 
-   e.g. `Example Package/Create Custom Example`
-       - Note: if you want your wizard to be launched from somewhere other than the "Tools" tab, instead replace "Tools/MY_WIZARD_MENU_ITEM" with the full menu path.
-   - "MY_WIZARD_WINDOW_TITLE", the name displayed when the wizard is opened
-   - "MY_WIZARD_HELP_DIALOGUE", the text displayed as an information box at the top of the wizard. Include descriptions of what each macro should be replaced with, and any other instructions for the user.
-3. In `CodeGenWizard.cs`, edit the "WizardHelp" string at the top to add a description of the macros in your templates.
+   | Find | Replace Example | Description |
+   | --- | --- | --- |
+   | `MY_PACKAGE_NAMESPACE` | `BazzaGibbs.ExamplePackage` | The namespace of the package you're embedding this into. |
+   | `MY_PACKAGE_URI` | `com.bazzagibbs.examplepackage` | The URI of the package you're embedding this into. |
+   | `MY_WIZARD_MENU_ITEM` | `Example Package/Create Custom Example` | The submenu under "Tools" where the CodeGen wizard will be launched from. |
+   | `MY_WIZARD_WINDOW_TITLE` | `Create Custom Example` | The window title of the wizard when it has been launched. |
+   | `MY_WIZARD_HELP_DIALOGUE` | `Descriptions for each macro: ...` | Contents of the information dialogue box at the top of the wizard. |
+       
+Note: if you want your wizard to be launched from somewhere other than the "Tools" tab, instead replace `Tools/MY_WIZARD_MENU_ITEM` with the full menu path.
+
+3. Delete the example template in `CodeGen/Editor/Code Templates/ExampleTemplate.txt` and replace with your own code templates.
 
 ## Writing Templates
 
