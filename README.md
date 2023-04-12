@@ -5,8 +5,9 @@ A very simple code generator with a similar syntax to JetBrains products' code t
 
 ## Embedding in a Package
 
-1. Copy this repo to a folder called "CodeGen" inside your package folder: `Packages/com.bazzagibbs.examplepackage/CodeGen`
-2. Find and replace the following within the CodeGen folder:
+1. Clone this repo directly into your package folder: `<UnityProj>/Packages/<com.your.package>/CodeGen`.
+2. Delete the `.git` directory and `.gitignore` file from the CodeGen directory.
+3. Find and replace the following within the CodeGen folder:
    | Find | Replace Example | Description |
    | --- | --- | --- |
    | `MY_PACKAGE_NAMESPACE` | `BazzaGibbs.ExamplePackage` | The namespace of the package you're embedding this into. |
@@ -17,7 +18,7 @@ A very simple code generator with a similar syntax to JetBrains products' code t
        
 Note: if you want your wizard to be launched from somewhere other than the "Tools" tab, instead replace `Tools/MY_WIZARD_MENU_ITEM` with the full menu path.
 
-3. Delete the example template in `CodeGen/Editor/Code Templates/ExampleTemplate.txt` and replace with your own code templates.
+4. Delete the example template in `CodeGen/Editor/Code Templates/ExampleTemplate.txt` and replace with your own code templates.
 
 ## Writing Templates
 
