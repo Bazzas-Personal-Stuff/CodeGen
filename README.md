@@ -19,6 +19,7 @@ A very simple code generator with a similar syntax to JetBrains products' code t
 Note: if you want your wizard to be launched from somewhere other than the "Tools" tab, instead replace `Tools/MY_WIZARD_MENU_ITEM` with the full menu path.
 
 4. Delete the example template in `CodeGen/Editor/Code Templates/ExampleTemplate.txt` and replace with your own code templates.
+5. Make sure the file `CodeGen/Editor/MY_PACKAGE_NAMESPACE.CodeGen.Editor.asmdef` has been renamed appropriately, otherwise manually rename it.
 
 ## Writing Templates
 
