@@ -1,5 +1,5 @@
 {
-    "name": "MY_PACKAGE_URI.CodeGen.Editor",
+    "name": "MY_PACKAGE_NAMESPACE.CodeGen.Editor",
     "rootNamespace": "MY_PACKAGE_NAMESPACE",
     "references": [],
     "includePlatforms": [],
