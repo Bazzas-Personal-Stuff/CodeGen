@@ -98,19 +98,22 @@ namespace MY_PACKAGE_NAMESPACE {
                 }
 
                 if (batchCount == 0) {
-                    if(macroDef.replaceWithBatch.Count != 0){
-                        batchCount = macroDef.replaceWithBatch.Count;
-                        continue;
+                    if(macroDef.replaceWithBatch.Count == 0){
+                        Debug.LogError($"CodeGen: Batch generation invalid, macro has no entries. Problem macro: {macroDef.macroName}");
+                        return -1;
                     }
+                    
+                    batchCount = macroDef.replaceWithBatch.Count;
+                    continue;
                 }
 
                 if (batchCount == macroDef.replaceWithBatch.Count) continue;
                 
                 Debug.LogError($"CodeGen: Batch generation invalid. Please make sure all batch macros have the same number of entries. Problem macro: {macroDef.macroName}"); 
-                return 0;
+                return -1;
             }
 
-            return batchCount;
+            return batchCount == 0 ? 1 : batchCount;
         }
 
         Dictionary<string, string> GetBatchReplacements(int index) {
@@ -209,7 +212,10 @@ namespace MY_PACKAGE_NAMESPACE {
                         }
                         
                         // TODO: Record Undo 
+                        Debug.Log($"Saving to {outputPath}");
                         Directory.CreateDirectory(outputDestDir);
+                        // TextAsset generatedTxt = new(templateBodyReplaced);
+                        // AssetDatabase.CreateAsset(generatedTxt, outputPath);
                         File.WriteAllText(outputPath, templateBodyReplaced);
                         successfulWrites.Add(outputPath);
                     }

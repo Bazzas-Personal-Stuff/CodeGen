@@ -1,1 +1,4 @@
 *.meta
+
+*.builtin.txt
+*.builtin.txt.meta
